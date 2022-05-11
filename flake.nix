@@ -6,15 +6,26 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }: flake-utils.lib.eachDefaultSystem (system:
-    let pkgs = import nixpkgs { inherit system; }; in
+  outputs = { self, nixpkgs, flake-utils }:
     {
-      # TODO(jared): generate matrix of common resolutions
-      packages = pkgs.lib.genAttrs
-        [ "clouds" "fern" "flow" "islands" "landscape" "lightning" "marrowlike" "mesh" "tangles" "water" "wood" "zebra" ]
-        (wallpaper: pkgs.callPackage (import ./wallpaper.nix { inherit wallpaper; }) { });
-      devShells.default = pkgs.mkShell {
-        buildInputs = with pkgs; [ imagemagick gcc ];
+      overlays.default = final: prev: {
+        # TODO(jared): generate matrix of common resolutions
+        wallpapers = prev.lib.genAttrs
+          [ "clouds" "fern" "flow" "islands" "landscape" "lightning" "marrowlike" "mesh" "tangles" "water" "wood" "zebra" ]
+          (wallpaper: prev.callPackage (import ./wallpaper.nix { inherit wallpaper; }) { });
       };
-    });
+    } //
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs {
+          overlays = [ self.overlays.default ];
+          inherit system;
+        };
+      in
+      {
+        packages = pkgs.wallpapers;
+        devShells.default = pkgs.mkShell {
+          buildInputs = with pkgs; [ imagemagick gcc ];
+        };
+      });
 }
